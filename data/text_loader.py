@@ -1,5 +1,5 @@
 import spacy
-from torchtext.datasets import Multi30k
+from torchtext.datasets import Multi30k, WMT14
 from torchtext.data import Field, BucketIterator
 
 spacy_de = spacy.load('de_core_news_sm')
@@ -32,17 +32,22 @@ TRG = Field(tokenize=tokenize_en,
             batch_first=True)
 
 
-def get_data_split():
-    return Multi30k.splits(exts=('.de', '.en'), fields=(SRC, TRG))
+def get_data_split(dataset):
+    if dataset == "Multi30k":
+        return Multi30k.splits(exts=('.de', '.en'), fields=(SRC, TRG))
+    elif dataset == "WMT14":
+        return WMT14.splits(exts=('.de', '.en'), fields=(SRC, TRG))
+    else:
+        raise Exception("Invalid data set")
 
 
-def get_data_iterator_splits(batch_size, device):
-    train_data, valid_data, test_data = get_data_split()
+def get_data_iterator_splits(config, device):
+    train_data, valid_data, test_data = get_data_split(config.dataset)
     SRC.build_vocab(train_data, min_freq=2)
     TRG.build_vocab(train_data, min_freq=2)
     return BucketIterator.splits(
                 (train_data, valid_data, test_data),
-                batch_size=batch_size,
+                batch_size=config.batch_size,
                 device=device)
 
 

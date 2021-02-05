@@ -4,10 +4,9 @@ import torch.nn as nn
 from torchtext.data.metrics import bleu_score
 import spacy
 
-from models.architectures import make_transformer, make_dss, make_dss_enc_transformer_dec
+from models.architectures import make_transformer, make_dss, make_dss_enc_transformer_dec, make_gated_dss
 from data.text_loader import get_data_iterator_splits, get_pad_tokens_idx, get_data_split, SRC, TRG
-
-import argparse
+from utils import parse_args
 
 def evaluate(model, iterator, criterion):
     model.eval()
@@ -81,28 +80,24 @@ def translate_sentence(sentence, src_field, trg_field, model, device, max_len=50
     return trg_tokens[1:]
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="dss_enc_tranformer_dec")
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
+    args = parse_args()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    BATCH_SIZE = 128
-    train_iterator, valid_iterator, test_iterator = get_data_iterator_splits(BATCH_SIZE, device)
+    train_iterator, valid_iterator, test_iterator = get_data_iterator_splits(args, device)
     src_pad_idx, trg_pad_idx = get_pad_tokens_idx()
 
     args = parse_args()
     if args.model == "transformer":
-        model = make_transformer(None, device)
+        model = make_transformer(args, device)
     elif args.model == "dss":
-        model = make_dss(None, device)
+        model = make_dss(args, device)
     elif args.model == "dss_enc_transformer_dec":
-        model = make_dss_enc_transformer_dec(None, device)
+        model = make_dss_enc_transformer_dec(args, device)
+    elif args.model == "gated_dss":
+        model = make_gated_dss(args, device)
     else:
         raise Exception("invalid model type")
-    model.load_state_dict(torch.load(f'{args.model}.pt'))
+    model.load_state_dict(torch.load(f"{args.save_file}.pt"))
 
     criterion = nn.CrossEntropyLoss(ignore_index=trg_pad_idx)
     test_loss = evaluate(model, test_iterator, criterion)
@@ -112,7 +107,7 @@ if __name__ == "__main__":
     #
     example_idx = 8
     #
-    train_data, _, test_data = get_data_split()
+    train_data, _, test_data = get_data_split(args.dataset)
     src = vars(train_data.examples[example_idx])['src']
     trg = vars(train_data.examples[example_idx])['trg']
 
